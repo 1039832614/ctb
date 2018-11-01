@@ -128,29 +128,27 @@ class ShopRation extends Agent
 	}
 	/**
 	 * 开通维修厂奖励列表 8月15日孙烨兰修改
+	 * xjm 2018.10.27 15:13
 	 * @return [type] [description]
 	 */
 	public function awards_list(){
-		$list = Db::table('cs_increase ci')
-				->join('cs_shop cs','cs.id = ci.sid')
-				->where('cs.aid',$this->aid)
-				->where('audit_status',2)
-				->order('cs.audit_time asc')
-				->field('company,phone,cs.audit_time as create_time')
-				->select();
 
-		$arr = Db::table('cs_increase ci')
-				->join('cs_shop cs','cs.id = ci.sid')
-				->where('cs.aid',$this->aid)
-				->where('audit_status',2)
-				->field('company,phone,ci.create_time')
-				->order('ci.create_time asc')
-				->select();
-
-		foreach ($list as $k => $v) {
-			$list[$k]['create_time'] =date('Y-m-d H:i:s', $list[$k]['create_time']);
-		}
-		$list =array_merge($list,$arr);
+		$list_shop = Db::table('cs_shop')
+					 ->where([
+					 	'aid' => $this->aid
+					 ])
+					 ->field('company,phone,FROM_UNIXTIME(audit_time) as create_time')
+					 ->select();
+		$list_shop_increase = Db::table('cs_increase')
+								->alias('i')
+								->join('cs_shop s','s.id = i.sid')
+								->where([
+									'i.aid' => $this->aid
+								])
+								->field('company,phone,i.create_time')
+								->select();
+		$list = array_merge($list_shop,$list_shop_increase);
+		
 		$count = count($list); 
 		$list = $this->sorts($list,$count);
 		foreach ($list as $key => $value) {

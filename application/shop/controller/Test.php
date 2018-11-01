@@ -26,6 +26,8 @@ class Test extends Controller
 	}
 	public function a()
 	{
+		$a = 1;
+		if($a ==true)
 		$a = [
 			'aid' => 1,
 			'bind' => 2,
