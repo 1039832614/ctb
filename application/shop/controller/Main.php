@@ -60,12 +60,22 @@ class Main extends Shop
 		$list = Db::table('u_card')
 				->alias('c')
 				->join(['u_user'=>'u'],'c.uid = u.id')
-				->field('plate,card_number,remain_times,u.name,u.phone,sale_time')
+				->field('c.uid,plate,card_number,remain_times,u.name,u.phone,sale_time')
 				->where('sid',$this->sid)
 				->where('pay_status',1)
 				->order('u.id desc')
 				->page($page, $pageSize)
 				->select();
+		// 判断用户是否是会员
+		foreach ($list as $k => $v) {
+			$status = Db::table('u_member_table')->where(['uid'=>$v['uid'],'pay_status'=>1])->count();
+			if($status > 0){
+				$list[$k]['status'] = 1;
+			}else{
+				$list[$k]['status'] = 0;
+			}
+		}
+		//判断结束
 		if($count > 0){
 			$this->result(['list'=>$list,'rows'=>$rows],1,'获取成功');
 		}else{

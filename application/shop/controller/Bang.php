@@ -28,7 +28,9 @@ class Bang extends Shop
 		// 获取每页条数
 		$pageSize = 10;
 		// 获取分页总条数
-		$count = Db::table('cs_income')->where('sid',$this->sid)->count();
+		$count = Db::table('cs_income')
+					->where('sid',$this->sid)
+					->count();
 		$rows = ceil($count / $pageSize);
 		$list = Db::table('cs_income')
 				->alias('i')
@@ -57,7 +59,9 @@ class Bang extends Shop
 		// 获取每页条数
 		$pageSize = 1;
 		// 获取分页总条数
-		$count = Db::table('u_comment')->where('sid',$this->sid)->count();
+		$count = Db::table('u_comment')
+					->where('sid',$this->sid)
+					->count();
 		$rows = ceil($count / $pageSize);
 		$list = Db::table('u_comment uc')
 				->join('cs_income ci','uc.bid = ci.id')
@@ -111,7 +115,9 @@ class Bang extends Shop
 		// 如果该车存在
 		if($count > 0){
 			// 判断该车是否有邦保养次数
-			$remain_times = Db::table('u_card')->where('plate',$plate)->value('remain_times');
+			$remain_times = Db::table('u_card')
+							->where('plate',$plate)
+							->value('remain_times');
 			if($remain_times > 0){
 				$info = $this->getCarInfo($plate);
 				$check = $this->checkOil($this->sid,$info['oid'],$info['litre']);
@@ -148,7 +154,7 @@ class Bang extends Shop
 				// 如果库存充足，则进行邦保养操作
 				if($oilCheck !== false){
 					// 获取运营商处设定的金额
-					$rd = 	Db::table('cs_shop')
+					$rd = Db::table('cs_shop')
 							->alias('s')
 							->join(['ca_agent_set'=>'a'],'s.aid = a.aid')
 							->field('shop_fund,shop_hours,s.aid')
@@ -175,16 +181,30 @@ class Bang extends Shop
 					// 开启事务
 					Db::startTrans();
 					// 减少用户卡的次数
-					$card_dec = Db::table('u_card')->where('id',$data['cid'])->setDec('remain_times');
+					$card_dec = Db::table('u_card')
+								->where('id',$data['cid'])
+								->setDec('remain_times');
 					// 汽修厂库存减少
-					$ration_dec = Db::table('cs_ration')->where('sid',$this->sid)->where('materiel',$data['oid'])->setDec('stock',$data['litre']);
+					$ration_dec = Db::table('cs_ration')
+									->where('sid',$this->sid)
+									->where('materiel',$data['oid'])
+									->setDec('stock',$data['litre']);
 					// 汽修厂账户余额增加服务次数增加
-					$shop_inc = Db::table('cs_shop')->where('id',$this->sid)->inc('balance',$money)->inc('service_num',1)->update();
+					$shop_inc = Db::table('cs_shop')
+									->where('id',$this->sid)
+									->inc('balance',$money)
+									->inc('service_num',1)
+									->update();
 					// 运营商邦保养次数增加
-					$service_num = Db::table('ca_agent')->where('aid',$rd['aid'])->inc('service_time',1)->update();
+					$service_num = Db::table('ca_agent')
+										->where('aid',$rd['aid'])
+										->inc('service_time',1)
+										->update();
 
 					// 生成邦保养记录
-					$bang_log = Db::table('cs_income')->strict(false)->insert($arr);
+					$bang_log = Db::table('cs_income')
+									->strict(false)
+									->insert($arr);
 					// 事务提交判断
 					if($card_dec && $ration_dec  && $shop_inc && $bang_log && $service_num){
 						Db::commit();
@@ -229,7 +249,12 @@ class Bang extends Shop
 	public function checkOil($sid,$oid,$litre)
 	{
 		// 获取该油品库
-		$stock = Db::table('cs_ration')->where(['materiel' => $oid,'sid' => $sid])->value('stock');
+		$stock = Db::table('cs_ration')
+						->where([
+							'materiel' => $oid,
+							'sid' => $sid
+						])
+						->value('stock');
 		// 检测该油品库存是否充足
 		return ($stock < $litre) ? false : true;
 	}
@@ -252,26 +277,24 @@ class Bang extends Shop
 	}
 
 
-/****************/
-    // 2018.08.28 11:41  张乐召  添加  搜索时 显示该维修厂下邦保养记录中已有的车牌号进行模糊查询
+	
+	/**
+	 * 显示该维修厂下邦保养记录中已有的车牌号进行模糊查询
+	 * @return [type] [description]
+	 */
    	public function query()
-    	{
-      	  $plate = input('post.plate');
-        	$list = Db::table('u_card')
+   	{
+      	$plate = input('post.plate');
+        $list = Db::table('u_card')
         	    ->where('plate','like','%'.$plate.'%')
-      	    ->where('sid',$this->sid)
+      	        ->where('sid',$this->sid)
          	    ->field('plate')
-       	    ->distinct(true)
-            	    ->select();
-	$arr = array();
-         	  foreach ($list as $key=>$value){
-           	         $arr[] = $value['plate'];
-                 }
-                     return $arr;
-             }
-    /****************/
-
-
-
-
+       	        ->distinct(true)
+        	    ->select();
+		$arr = array();
+     	foreach ($list as $key=>$value){
+   	        $arr[] = $value['plate'];
+        }
+        return $arr;
+    }
 }

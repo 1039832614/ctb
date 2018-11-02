@@ -24,34 +24,4 @@ class Test extends Controller
 				->select();
 		return $list;
 	}
-	public function a()
-	{
-		$a = 1;
-		if($a ==true)
-		$a = [
-			'aid' => 1,
-			'bind' => 2,
-		];
-		$b = [
-			'aid' => 1,
-			'bind' => 2
-		];
-		if($a===$b)
-		{
-			return 1;
-		} else {
-			return 2;
-		}
-	}
-	public function b()
-	{
-		$uid = input('get.uid')?:die('缺少uid');
-		$sum = DB::table('u_member_table')
-    	       ->where([
-    	       	        'uid' => $uid,
-    	       	        'pay_status' => 1,
-    	                ])
-    	       ->sum('pay_time');
-    	return $sum ? : 0;
-	}
 }

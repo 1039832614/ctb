@@ -145,7 +145,6 @@ class Complain extends Shop
             ->join('cs_shop_set b','a.id = b.county_id','LEFT')
             ->where('b.sid',$sid)
             ->value('a.pid');
-        // print_r($city_id);exit;
         // 查询是否有该区域的服务经理
         $if_exist = Db::table('sm_area')
             ->where('area',$city_id)
@@ -169,7 +168,6 @@ class Complain extends Shop
             $info['code'] = 0;
             $info['msg'] = '该区域不存在服务经理,暂时无法投诉';
             return $info;
-//            $this->result('',0,'该区域不存在服务经理,暂时无法投诉');
         }
     }
 
