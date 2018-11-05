@@ -1,15 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="13dadc16-ce39-40a6-af54-1f74f63eec61" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/php.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/application/shop/controller/Bang.php" beforeDir="false" afterPath="$PROJECT_DIR$/application/shop/controller/Bang.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/application/shop/controller/Complain.php" beforeDir="false" afterPath="$PROJECT_DIR$/application/shop/controller/Complain.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/application/shop/controller/Login.php" beforeDir="false" afterPath="$PROJECT_DIR$/application/shop/controller/Login.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/application/shop/controller/Main.php" beforeDir="false" afterPath="$PROJECT_DIR$/application/shop/controller/Main.php" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/application/shop/controller/Test.php" beforeDir="false" afterPath="$PROJECT_DIR$/application/shop/controller/Test.php" afterDir="false" />
-    </list>
+    <list default="true" id="13dadc16-ce39-40a6-af54-1f74f63eec61" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -23,10 +15,11 @@
     <session id="-1031894373">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
-          <entry key="project.closed" value="1" />
+          <entry key="project.closed" value="2" />
           <entry key="project.open.time.1" value="1" />
           <entry key="project.open.time.20" value="1" />
-          <entry key="project.opened" value="2" />
+          <entry key="project.open.time.22" value="1" />
+          <entry key="project.opened" value="3" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
@@ -141,7 +134,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -171,11 +163,12 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../phpqrcode" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
   </component>
@@ -203,16 +196,17 @@
       <updated>1541056961207</updated>
       <workItem from="1541056962513" duration="4934000" />
       <workItem from="1541138972837" duration="623000" />
+      <workItem from="1541150983579" duration="62000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="5557000" />
+    <option name="totallyTimeSpent" value="5619000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="-8" y="-8" width="1936" height="1056" extended-state="6" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.12100213" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.122068234" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
       <window_info anchor="bottom" id="Message" order="0" />
