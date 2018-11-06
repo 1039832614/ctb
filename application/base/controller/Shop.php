@@ -29,7 +29,25 @@ class Shop extends Base
 	{
 		return Db::table('cs_shop')->where('id',$this->sid)->value('phone');
 	}
-
+	/**
+	 * 获取维修厂信息
+	 * 新版本维修厂使用
+	 * @return [type] [description]
+	 */
+	public function getShopInfo()
+	{
+		$info =  Db::table('cs_shop')
+				->alias('s')
+				->join('cs_shop_set ss','ss.sid = s.id')
+				->where([
+					's.id' => $this->sid
+				])
+				->field('s.phone,s.company,s.leader,ss.major,ss.province,ss.city,ss.county,ss.address,ss.serphone,ss.about,ss.license,ss.photo,ss.account,ss.account_name,ss.bank,ss.branch')
+				->find();
+		if(!empty($info['major'])) $info['major'] = explode(',', $info['major']);
+		if(!empty($info['photo'])) $info['photo'] = json_decode($info['photo']);
+		return $info;
+	}
 	/**
 	 * 店铺是否出现库存预警
 	 */

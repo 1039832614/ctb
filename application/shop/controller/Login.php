@@ -38,7 +38,10 @@ class Login extends Shop
 		// 如果验证通过则进行登录操作
 		if($validate->check($data)){
 			// 查找用户是否存在
-			$us = Db::table('cs_shop')->field('id,passwd,audit_status')->where('usname',$data['usname'])->find();
+			$us = Db::table('cs_shop')
+					->field('id,passwd,audit_status')
+					->where('usname',$data['usname'])
+					->find();
 			if($us){
 				if(compare_password($data['passwd'],$us['passwd'])){
 					// 生成token作为验证使用
@@ -98,7 +101,7 @@ class Login extends Shop
 	public function forget()
 	{
 		// 获取提交过来的数据
-		$data=input('post.');
+		$data = input('post.');
 		// 实例化验证
 		$validate = validate('Forget');
 		// 如果验证通过则进行登录操作
@@ -107,12 +110,14 @@ class Login extends Shop
 			$check = $this->sms->compare($data['mobile'],$data['code']);
 			if($check !== false){
 				// 进行修改密码的操作
-				$count = Db::table('cs_shop')->where('phone',$data['mobile'])->count();
+				$count = Db::table('cs_shop')
+							->where('phone',$data['mobile'])
+							->count();
 				if($count > 0){
-
-					$res=Db::table('cs_shop')->where('phone',$data['mobile'])->setField('passwd',get_encrypt($data['passwd']));
-					// echo Db::table('cs_shop')->getLastSql();exit;
-					if($res !==false){
+					$res = Db::table('cs_shop')
+							->where('phone',$data['mobile'])
+							->setField('passwd',get_encrypt($data['passwd']));
+					if($res !== false){
 	                    $this->result('',1,'修改成功');
 	                }else{
 	                    $this->result('',0,'修改失败');

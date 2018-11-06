@@ -313,6 +313,77 @@ class Main extends Shop
 			}
 		}
 	}
+	/**
+	 * 完善店铺信息 维修厂名称，负责人，主修，省市县，详细地址，服务电话，店铺简介，店铺照片，营业执照
+	 * 新版本维修厂使用
+	 */
+	public function setShopInfo()
+	{
+		$data = input('post.');
+		//实例化验证
+		$validate = validate('Info');
+		if($validate->check($data)){
+			//将提交过来的主修数组 分割为字符串
+			$data['major'] = implode(',', $data['major']);
+			//实例化
+			$map = new Map();
+			//空格无害化处理
+			$data['address'] = str_replace(' ', '', $data['address']);
+			//拼接地址
+			$adre = $data['province'].$data['city'].$data['county'].$data['address'];
+			//后台获取经纬度
+			$data['lat'] = $map->maps($adre)['lat'];
+			$data['lng'] = $map->maps($adre)['lng'];
+			// 接受图片json处理
+			$data['photo'] = json_encode($data['photo']);
+			// 根据坐标获得hash值
+			$geo = new Geo();
+			$data['hash_val'] = $geo->encode_hash($data['lat'],$data['lng']);
+			unset($data['token']);
+			//构建更新cs_shop表的数组
+			$arr = [
+				'company' => $data['company'],
+				'leader'  => $data['leader']
+			];
+			unset($data['company']);
+			unset($data['leader']);
+			Db::startTrans();
+			//获取维修厂当前状态
+			$audit_status = Db::table('cs_shop')
+							->where('id',$this->sid)
+							->value('audit_status');
+			if($audit_status < 1){
+				//将状态改为已完善信息
+				$re = Db::table('cs_shop')
+					  ->where('id',$this->sid)
+					  ->setField('audit_status',1);
+			} else {
+				$re = 1;
+			}
+			//更新维修厂店铺信息
+			$save = Db::table('cs_shop_set')
+						->where('sid',$this->sid)
+						->update($data);
+			$save_m = Db::table('cs_shop')
+					->where('id',$this->sid)
+					->update($arr);
+			if($audit_status == 0) {
+					$msg = '您的资料已提交审核';
+				} else {
+					$msg = '修改成功';
+				}
+			if($re!==false && $save!==false && $save_m!==false){
+				Db::commit();
+				$this->setAgent($this->sid);
+				$this->result('',1,$msg);
+			}else{
+				Db::rollback();
+				$this->result('',0,'保存失败');
+			}
+		} else {
+			$this->result('',0,$validate->getError());
+		}
+	}
 
 	/**
 	 * 获取统计数字
@@ -368,9 +439,10 @@ class Main extends Shop
 			if(get_encrypt($data['passwd']) == $op){
 				// 检测数据提交
 				if($data['npasswd'] == $data['spasswd']){
+					//此处之前有个小bug，更新的一直是原密码
 					$res = Db::table('cs_shop')
 							->where('id',$this->sid)
-							->setField('passwd',get_encrypt($data['passwd']));
+							->setField('passwd',get_encrypt($data['npasswd']));
 					if($res !== false){
 						$this->result('',1,'修改成功');
 					}else{
@@ -465,7 +537,12 @@ class Main extends Shop
 		$mobile = $this->getMobile();
 		$code = $this->apiVerify();
 		$content = "您的短信验证码是【{$code}】。您正在通过手机号重置登录密码，如非本人操作，请忽略该短信。";
-		return $this->sms->send_code($mobile,$content,$code);
+		$res = $this->sms->send_code($mobile,$content,$code);
+		if($res == "提交成功"){
+			$this->result('',1,'发送成功');
+		} else {
+			$this->result('',0,'由于短信平台限制，您一天只能接受五次验证码');
+		}
 	}
 
 	/**
@@ -481,18 +558,24 @@ class Main extends Shop
 	}
 	/**
 	 * 修改手机号发送短信验证码
+	 * 新版本维修厂使用
 	 * @return [type] [description]
 	 */
 	public function alterCode(){
 		$mobile = $this->getMobile();
 		$code = $this->apiVerify();
 		$countent = "您正在修改手机号，验证码【{$code}】，请在5分钟内按页面提示提交验证码，切勿将验证码泄露于其他人。";
-		$list = $this->sms->send_code($mobile,$countent,$code);
-		$this->result('',1,'验证码已发送');
+		$res = $this->sms->send_code($mobile,$countent,$code);
+		if($res == "提交成功"){
+			$this->result('',1,'发送成功');
+		} else {
+			$this->result('',0,'由于短信平台限制，您一天只能接受五次验证码');
+		}
 	}
 
 	/**
 	 * 修改手机号
+	 * 新版本使用
 	 * @return [type] [description]
 	 */
 	public function alterPhone()

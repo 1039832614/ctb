@@ -3,6 +3,7 @@ namespace app\shop\controller;
 use app\base\controller\Shop;
 use Wx\WxPay;
 use Wx\WxPayConfig;
+use Firebase\JWT\JWT;
 use Wx\WxPayApi;
 use think\Db;
 
@@ -27,6 +28,7 @@ class Qr extends Shop
 
 	/**
 	 * 进行二维码模式二的支付
+	 * 新版本维修厂使用
 	 */
 	public function pay()
 	{
@@ -35,17 +37,18 @@ class Qr extends Shop
 		$trade_no = $this->getTradeNo();
 		$api = new WxPayApi();
 		$input = new WxPay();
+		$money = 200000;
 		$input->SetBody("维修厂系统使用费");
 		$input->SetAttach($uid);
 		$input->SetOut_trade_no($trade_no);
-		$input->SetTotal_fee("200000");
+		$input->SetTotal_fee($money);
 		$input->SetNotify_url("https://cc.ctbls.com/shop/qr/notify");
 		$input->SetTrade_type("NATIVE");
 		$input->SetProduct_id("996688525");
 		$result = $api->GetPayUrl($input);
 		$url = $result["code_url"];
 		$src =  "http://paysdk.weixin.qq.com/qrcode.php?data=".urlencode($url);
-		$this->result(['src'=>$src],1,'获取成功');
+		$this->result(['src'=>$src,'detail'=>($money/100).'元','title'=>'支付系统使用费','bottom'=>'请使用微信扫码支付系统使用费'],1,'获取成功');
 	}
 
 	/**
@@ -89,16 +92,24 @@ class Qr extends Shop
 	public function getStatus()
 	{
 		// 获取提交过来的数据
-		$uid=input('get.sid');
+		$uid = input('get.sid');
 		if($uid){
-			$audit_status = Db::table('cs_shop')->where('id',$uid)->value('audit_status');
-			$this->result(['audit_status' => $audit_status],1,'获取状态成功');
+			$info = Db::table('cs_shop')
+								->where('id',$uid)
+								->field('audit_status,usname')
+								->find();
+
+			if($info['audit_status'] == 99) {
+				$info = ['detail'=>'支付失败','status'=>0];
+			} elseif($info['audit_status'] == 0) {
+				$token = $this->token($uid,$info['usname']);
+				$info = ['detail'=>'支付成功，请完善信息','status'=>1,'token'=>$token];
+			}
+			$this->result($info,1,'获取状态成功');
 		}else{
 			$this->result('',0,'用户信息有误');
 		}
 	}
-
-
 
 	/**
      * xml转换成数组  
@@ -110,5 +121,16 @@ class Qr extends Shop
         $val = json_decode(json_encode($xmlstring), true);  
         return $val;  
     }
-
+    /**
+     * @param   用户id
+     * @param  用户登录账户
+     * @return JWT签名
+     */
+    private function token($sid,$usname){
+        $key = create_key();   //
+        $token = ['id'=>$sid,'login'=>$usname,'type'=>4];
+        $JWT = JWT::encode($token,$key);
+        JWT::$leeway = 600;
+        return $JWT;
+    }
 }
