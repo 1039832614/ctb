@@ -23,3 +23,4 @@
 	}
 
  ?>
+ [{"num":58,"materiel_id":2,"materiel":"SM半合成(邦保养1号)","remarks":"粘度30：29升，粘度40：29升"},{"num":9,"materiel_id":3,"materiel":"SN合成(邦保养2号)","remarks":"粘度30：5升，粘度40：4升"},{"num":419,"materiel_id":4,"materiel":"SN全合成(邦保养3号)","remarks":"粘度30：210升，粘度40：209升"},{"num":15,"materiel_id":5,"materiel":"SN脂类全合成(邦保养4号)","remarks":"粘度30：8升，粘度40：7升"}]

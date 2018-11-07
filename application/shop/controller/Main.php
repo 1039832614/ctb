@@ -71,7 +71,20 @@ class Main extends Shop
 				->select();
 		// 判断用户是否是会员
 		foreach ($list as $k => $v) {
-			$status = Db::table('u_member_table')->where(['uid'=>$v['uid'],'pay_status'=>1])->count();
+			$status = Db::table('u_member_table')
+						->where([
+							'uid'=>$v['uid'],
+							'pay_status'=>1
+						])
+						->count();
+			$list[$k]['car_pic'] = Db::table('cb_privil_ser')
+									->where('plate',$list[$k]['plate'])
+									->order('id desc')
+									->limit(1)
+									->value('car_pic');
+			if(empty($list[$k]['car_pic'])){
+				$list[$k]['car_pic'] = 'https://ceshi.ctbls.com/uploads/shop/photo/20181107/317821873.png';
+			}
 			if($status > 0){
 				$list[$k]['status'] = 1;
 			}else{
@@ -85,7 +98,7 @@ class Main extends Shop
 			$this->result('',0,'暂无数据');
 		}
 	}
-
+	
 	/**
 	 * 获取技师列表
 	 */
