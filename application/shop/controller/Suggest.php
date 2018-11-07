@@ -19,6 +19,7 @@ class Suggest extends Shop
 
 	/**
 	 * 添加反馈
+	 * 新版本维修厂使用
 	 */
 	public function add()
 	{

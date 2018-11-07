@@ -101,9 +101,11 @@ class Bang extends Shop
 
 	/**
 	 * 获取邦保养信息
+	 * 新版本
 	 */
 	public function getInfo()
 	{
+	
 		// 获取车牌号
 		$plate = input('post.plate','','strtoupper');
 		// 检测该车辆是否在当前汽修厂
@@ -122,6 +124,18 @@ class Bang extends Shop
 				$info = $this->getCarInfo($plate);
 				$check = $this->checkOil($this->sid,$info['oid'],$info['litre']);
 				if($check !== false){
+					//获取这个车牌号最后一次保养服务
+					$info['last_mileage'] = Db::table('u_card')
+											->alias('c')
+											->join('cs_income i','i.cid = c.id')
+											->where([
+												'pay_status' => 1,
+												'plate'      => $plate
+											])
+											->order('i.id desc')
+											->limit(1)
+											->value('the_mileage');
+					
 					$this->result($info,1,'获取信息成功');
 				}else{
 					$this->result('',0,'该油品库存不足');
@@ -137,6 +151,7 @@ class Bang extends Shop
 
 	/**
 	 * 进行邦保养操作
+	 * 新版本使用
 	 */
 	public function handle()
 	{
@@ -165,16 +180,17 @@ class Bang extends Shop
 					// $shop_fund = $price*$rd['shop_fund']/100;//0831 14:47 xjm
 					// 构建邦保养记录数据
 					$arr = [
-						'sid' => $this->sid,
-						'odd_number' => build_order_sn(),
-						'cid' => $data['cid'],
-						'oil' => $data['oil'],
-						'uid' => $data['uid'],
-						'litre' => $data['litre'],
-						'filter' => $data['filter'],
+						'sid'         => $this->sid,
+						'odd_number'  => build_order_sn(),
+						'cid'         => $data['cid'],
+						'oil'         => $data['oil'],
+						'uid'         => $data['uid'],
+						'litre'       => $data['litre'],
+						'filter'      => $data['filter'],
 						// 'grow_up' => $shop_fund,//0831 14:47 xjm
 						'hour_charge' => $data['hour_charge'],
-						'total' => $data['hour_charge']+$data['filter']
+						'the_mileage' => $data['the_mileage'],
+						'total'       => $data['hour_charge']+$data['filter']
 					];
 					// 可提现收入
 					$money = $data['hour_charge']+$data['filter'];
@@ -200,7 +216,6 @@ class Bang extends Shop
 										->where('aid',$rd['aid'])
 										->inc('service_time',1)
 										->update();
-
 					// 生成邦保养记录
 					$bang_log = Db::table('cs_income')
 									->strict(false)
@@ -230,15 +245,15 @@ class Bang extends Shop
 	 */
 	public function vcode()
 	{
-		$mobile = input('post.mobile');
+		$mobile = input('post.phone');
 		$card_number = input('post.card_number');
 		$code = $this->apiVerify();
 		$content = "您邦保养卡号为【{$card_number}】参与本次保养的验证码为【{$code}】，请勿泄露给其他人。";
 		$res = $this->sms->send_code($mobile,$content,$code);
 		if($res == "提交成功"){
-			$this->result('',1,'验证码发送中');
-		}else{
-			$this->result('',0,'验证码发送中');
+			$this->result('',1,'发送成功');
+		} else {
+			$this->result('',0,'由于短信平台限制，您一天只能接受五次验证码');
 		}
 		
 	}
@@ -280,6 +295,7 @@ class Bang extends Shop
 	
 	/**
 	 * 显示该维修厂下邦保养记录中已有的车牌号进行模糊查询
+	 * 新版本使用
 	 * @return [type] [description]
 	 */
    	public function query()
