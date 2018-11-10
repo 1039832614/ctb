@@ -452,9 +452,10 @@ class ShopAudit extends Agent
 				->alias('a')
 				->join('sm_user u','u.id = a.sm_id')
 				->where([
-					'a.area' => $area,
-					'a.sm_type' => $sm_type,
-					'a.audit_status' => 1
+					'a.area'         => $area,
+					'a.sm_type'      => $sm_type,
+					'a.audit_status' => 1,
+					'u.joinStatus'   => 1
 				])
 				->where('a.sm_mold','<>',2)
 				->order('a.id')

@@ -36,8 +36,8 @@ class SystemFee extends Agent
 		$input->SetBody("运营商系统使用费");
 		$input->SetAttach($uid);
 		$input->SetOut_trade_no($trade_no);
-		$input->SetTotal_fee("1");
-		$input->SetNotify_url("https://ceshi.ctbls.com/agent/SystemFee/not");
+		$input->SetTotal_fee("500000");
+		$input->SetNotify_url("https://cc.ctbls.com/agent/SystemFee/not");
 		$input->SetTrade_type("NATIVE");
 		$input->SetProduct_id("996688525");
 		$result = $api->GetPayUrl($input);
@@ -61,7 +61,7 @@ class SystemFee extends Agent
 	{
 		$xml =  file_get_contents("php://input");
 		$data = $this->xmlToArray($xml);
-		if($data['return_code'] == 'SUCCESS' && $data['result_code'] == 'SUCCESS' && $data['cash_fee'] == '1'){
+		if($data['return_code'] == 'SUCCESS' && $data['result_code'] == 'SUCCESS' && $data['cash_fee'] == '500000'){
 			// 更新运营商状态为3已支付
 			$save = Db::table('ca_agent')->where('aid',$data['attach'])->setField('status',3);
 			// 构建支付记录数组

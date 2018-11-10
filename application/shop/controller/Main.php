@@ -44,6 +44,7 @@ class Main extends Shop
 
 	/**
 	 * 获取用户
+	 * 新版本使用
 	 */
 	public function getUsers()
 	{
@@ -91,31 +92,127 @@ class Main extends Shop
 				$list[$k]['status'] = 0;
 			}
 		}
-		//判断结束
 		if($count > 0){
 			$this->result(['list'=>$list,'rows'=>$rows],1,'获取成功');
 		}else{
 			$this->result('',0,'暂无数据');
 		}
 	}
-	
 	/**
-	 * 获取技师列表
+	 * 会员管理页面的搜索
+	 * 新版本使用
+	 * @return [type] [description]
+	 */
+	public function searchUsers()
+	{
+		//此处给前端一组默认值，包括起止时间，状态以及购卡类型
+		$data = input('post.');
+		// return $data;die();
+		$page = input('post.page') ? : 1;
+		$data['start_time'] = input('post.start_time') ? : '2018-01-01 00:00:00';
+		$data['end_time'] = input('post.end_time') ? : date('Y-m-d H:i:s',time());
+		$data['card_type'] = input('post.card_type') ? : [1,4];
+		$data['status'] = input('post.status') ? : [1,2];
+		// return $data;die();
+		$pageSize = 10;
+		//如果有用户输入内容
+		$key = $data['key'];
+		$list = Db::table('u_card')
+				->alias('c')
+				->join(['u_user'=>'u'],'c.uid = u.id')
+				->field('c.uid,plate,card_number,remain_times,u.name,u.phone,sale_time')
+				->where([
+					['sid','=',$this->sid],
+					['pay_status','=',1],
+					['c.card_type','in',$data['card_type']],
+					['u.name','like',"%$key%"],
+					['c.sale_time','between time',[$data['start_time'],$data['end_time']]]	
+				])
+				->order('u.id desc')
+				->select();
+
+		
+		// 判断用户是否是会员
+		foreach ($list as $k => $v) {
+			$status = Db::table('u_member_table')
+						->where([
+							'uid'=>$v['uid'],
+							'pay_status'=>1
+						])
+						->count();
+			$list[$k]['car_pic'] = Db::table('cb_privil_ser')
+									->where('plate',$list[$k]['plate'])
+									->order('id desc')
+									->limit(1)
+									->value('car_pic');
+			if(empty($list[$k]['car_pic'])){
+				$list[$k]['car_pic'] = 'https://ceshi.ctbls.com/uploads/shop/photo/20181107/317821873.png';
+			}
+			if($status > 0){
+				$list[$k]['status'] = 1;
+			}else{
+				$list[$k]['status'] = 0;
+			}
+		} 
+		if(!empty($list)) {
+			foreach ($list as $key => $value) {
+				if($data['status'] == 1 && $list[$key]['status'] == 0) {
+					unset($list[$key]);
+				}
+				if($data['status'] == 2 && $list[$key]['status'] == 1) {
+					unset($list[$key]);
+				}
+			}
+			$count  = count($list);
+			$rows   = ceil($count / $pageSize);
+			$list_z = array_slice($list, ($page-1)*$pageSize,$pageSize);//分页的另外一种方式。
+			if($list_z) {
+				$this->result(['list'=>$list_z,'rows'=>$rows],1,'获取成功');
+			} else {
+				$this->result('',0,'暂无数据');
+			}
+		} else {
+			$this->result('',0,'暂无数据');
+		}
+	}
+	/**
+	 * 获取技师列表 头像，姓名，联系方式，从业时间，认证时间，擅长技能，服务次数，服务奖励，换店记录
+	 * 新版本使用
 	 */
 	public function getTns()
 	{
 		$page = input('post.page') ? : 1;
+		$data['start_time'] = strtotime(input('post.start_time') ? : '2018-01-01 00:00:00');
+		$data['end_time'] = strtotime(input('post.end_time') ? : date('Y-m-d H:i:s',time()));
 		// 获取每页条数
 		$pageSize = 10;
 		// 获取分页总条数
-		$count = Db::table('tn_user')->where('sid',$this->sid)->where('repair',1)->count();
+		$count = Db::table('tn_user')
+				->alias('u')
+				->LeftJoin('tn_worker_reward r','r.wid = u.id')
+				->where([
+					'u.sid' => $this->sid,
+					'repair' => 1,//乘用车
+					'cert' => 1//已认证
+				])
+				->where('u.certify_time','between',[$data['start_time'],$data['end_time']])
+				->order('u.id desc')
+				->group('u.id')
+				->count();
 		$rows = ceil($count / $pageSize);
 		// 获取数据
 		$list = Db::table('tn_user')
-				->field('name,phone,server,cert,id')
-				->where('sid',$this->sid)
-				->where('repair',1)
-				->order('id desc')
+				->alias('u')
+				->leftJoin('tn_worker_reward r','r.wid = u.id')
+				->where([
+					'u.sid' => $this->sid,
+					'repair' => 1,//乘用车
+					'cert' => 1//已认证
+				])
+				->order('u.id desc')
+				->group('u.id')
+				->field('u.id,head,name,phone,server,FROM_UNIXTIME(certify_time) as certify_time,skill,sum(r.id) as server_num,sum(r.reward) as server_money')
+				->where('u.certify_time','between',[$data['start_time'],$data['end_time']])
 				->page($page, $pageSize)
 				->select();
 		// 返回数据给前端
@@ -125,22 +222,44 @@ class Main extends Shop
 			$this->result('',0,'暂无数据');
 		}
 	}
-
 	/**
-	 * 获取技师列表
+	 * 获取技师换店记录
+	 * 新版本使用
+	 * @return [type] [description]
+	 */
+	public function getTnsExshop()
+	{
+		$id = input('post.id');
+		$detail = Db::table('tn_exshop')
+	    		->alias('a')
+	    		->join('cs_shop b','b.id = a.sid','LEFT')
+	    		->where('a.uid',$id)
+	    		->where('a.status',1)
+	    		->field('b.company,a.reason,FROM_UNIXTIME(a.create_time) as create_time,FROM_UNIXTIME(a.audit_time) as audit_time')
+	    		->select();
+	    if($detail){
+	    	$this->result($detail,1,'获取成功');
+	    } else {
+	    	$this->result('',0,'获取失败');
+	    }
+	}
+	/**
+	 * 获取技师详情
 	 */
 	public function getTnsDetail()
 	{
 		$id = input('post.id');
-		$info = Db::table('tn_user')->where('id',$id)->field('name,phone,server,skill,wx_head,head,certify_time')->find();
-		//2018.08.27 15:08  张乐召   添加 技师换店记录
-        		$info['detail'] = Db::table('tn_exshop')
-            		->alias('a')
-            		->join('cs_shop b','b.id = a.sid','LEFT')
-            		->where('a.uid',$id)
-            		->where('a.status',1)
-            		->field('b.usname,a.reason,a.create_time,a.audit_time')
-            		->select();
+		$info = Db::table('tn_user')
+				->where('id',$id)
+				->field('name,phone,server,skill,wx_head,head,certify_time')
+				->find();
+		$info['detail'] = Db::table('tn_exshop')
+    		->alias('a')
+    		->join('cs_shop b','b.id = a.sid','LEFT')
+    		->where('a.uid',$id)
+    		->where('a.status',1)
+    		->field('b.company,a.reason,a.create_time,a.audit_time')
+    		->select();
 		// 返回数据给前端
 		if($info){
 			$this->result($info,1,'获取成功');
@@ -148,7 +267,89 @@ class Main extends Shop
 			$this->result('',0,'暂无数据');
 		}
 	}
-
+	/**
+	 * 取消认证技师
+	 * 新版本使用
+	 * @return [type] [description]
+	 */
+	public function cancelTns()
+	{
+		$data = input('post.');
+		if(empty($data['reason'])){
+			$this->result('',0,'请输入原因');
+		} else {
+			Db::startTrans();
+			$arr = [
+				'wid' => $data['id'],
+				'reason' => $data['reason'],
+				'sid' => $this->sid
+			];
+			//入库维修厂取消认证技师表
+			$ins = Db::table('tn_shop_cancel')
+					->strict(false)
+					->insert($arr);
+			//更改技师状态
+			$cancel = Db::table('tn_user')
+						->where('id',$data['id'])
+						->setField(['cert'=>0,'certify_time'=>time()]);
+			//减少维修厂技师数量
+			$re = Db::table('cs_shop')
+					->where('id',$this->sid)
+					->setDec('tech_num',1);
+			if($ins !== false && $cancel !== false && $re !== false) {
+				Db::commit();
+				$this->result('',1,'已取消认证');
+			} else {
+				Db::rollback();
+				$this->result('',0,'操作失败');
+			}
+		}
+	}
+	/**
+	 * 取消记录
+	 * @return [type] [description]
+	 */
+	public function cancelTnsList()
+	{
+		$page = input('post.page') ? : 1;
+		$data['start_time'] = input('post.start_time') ? : '2018-01-01 00:00:00';
+		$data['end_time'] = input('post.end_time') ? : date('Y-m-d H:i:s',time());
+		// 每页条数
+		$pageSize = 10;
+		$count = Db::table('tn_shop_cancel')
+				->alias('c')
+				->join('tn_user u','u.id = c.wid')
+				->LeftJoin('tn_worker_reward r','r.id = u.id')
+				->where([
+					'u.sid' => $this->sid,
+					'repair' => 1,//乘用车
+				])
+				->order('u.id desc')
+				->group('u.id')
+				->field('u.id,head,name,phone,server,FROM_UNIXTIME(certify_time) as certify_time,skill,sum(r.id) as server_num,sum(r.reward) as server_money')
+				->where('c.create_time','between',[$data['start_time'],$data['end_time']])
+				->count();
+		$rows = ceil($count / $pageSize);
+		$list = Db::table('tn_shop_cancel')
+				->alias('c')
+				->join('tn_user u','u.id = c.wid')
+				->LeftJoin('tn_worker_reward r','r.id = u.id')
+				->where([
+					'u.sid' => $this->sid,
+					'repair' => 1,//乘用车
+				])
+				->order('u.id desc')
+				->group('u.id')
+				->field('u.id,head,name,phone,server,FROM_UNIXTIME(certify_time) as certify_time,skill,sum(r.id) as server_num,sum(r.reward) as server_money')
+				->where('c.create_time','between',[$data['start_time'],$data['end_time']])
+				->page($page, $pageSize)
+				->select();
+		if($list){
+			$this->result(['list'=>$list,'rows'=>$rows],1,'获取成功');
+		}else{
+			$this->result('',0,'暂无数据');
+		}
+	}
 	/**
 	 * 认证技师
 	 */

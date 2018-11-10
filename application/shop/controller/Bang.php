@@ -20,31 +20,43 @@ class Bang extends Shop
 
 
 	/**
-	 * 邦保养记录
+	 * 邦保养记录 订单编号，车牌号，车型，保养时间，用油名称，保养里程，用油升数，滤芯补贴，工时费，费用合计
+	 * 新版本使用
 	 */
 	public function log()
-	{
+	{	
+
 		$page = input('post.page') ? : 1;
+		$data['start_time'] = input('post.start_time') ? : date('Y-m-d H:i:s',time()-24*60*60);
+		$data['end_time'] = input('post.end_time') ? : date('Y-m-d H:i:s',time());
+		$key = input('post.key') ? : "";
 		// 获取每页条数
 		$pageSize = 10;
-		// 获取分页总条数
-		$count = Db::table('cs_income')
-					->where('sid',$this->sid)
-					->count();
-		$rows = ceil($count / $pageSize);
+		
 		$list = Db::table('cs_income')
 				->alias('i')
-				->join(['u_card'=>'c'],'i.cid = c.id')
-				->field('odd_number,cate_name,plate,i.create_time,i.id')
-				->where('i.sid',$this->sid)
+				->join('u_card c','c.id = i.cid')
+				->where([
+					['i.sid','=',$this->sid],
+					['i.create_time','between time',[$data['start_time'],$data['end_time']]],
+					['c.plate','like',"%$key%"]
+				])
+				->field('i.odd_number,c.plate,c.cate_name,i.create_time,i.oil,i.the_mileage,i.litre,i.filter,i.hour_charge,i.total')
 				->order('i.id desc')
-				->page($page, $pageSize)
 				->select();
+		$count = count($list);
+		$rows = ceil($count / $pageSize);
+		$total = 0 ;
+		for ($i=0; $i < $count; $i++) { 
+			$total += $list[$i]['total'];
+		}
+		//分页的另外一种方式,后期如需优化， 可将list数组以及条件写入缓存，后续取的时候先判断添加是否和之前的一致，如果一致，则取缓存中的数组进行分页，如果不同则重新查询以及写入缓存
+		$list = array_slice($list, ($page-1)*$pageSize,$pageSize);
 		// 返回给前端
-		if($count > 0){
-			$this->result(['list'=>$list,'rows'=>$rows],1,'获取成功');
+		if($list){
+			$this->result(['list'=>$list,'rows'=>$rows,'total'=>$total],1,'获取成功');
 		}else{
-			$this->result('',0,'暂无数据');
+			$this->result(['total'=>0],0,'暂无数据');
 		}
 	}
 

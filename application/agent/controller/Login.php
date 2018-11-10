@@ -1,80 +1,103 @@
-<?php
-namespace app\admin\controller;
+<?php 
+namespace app\agent\controller;
 use app\base\controller\Base;
-use think\Db;
 use Firebase\JWT\JWT;
-use think\Request;
+use think\Db;
+
+
 /**
-* 总后台登录
+* 登录
 */
 class Login extends Base
-{
-	
-		/**
-	 * 登录
-	 * @return [type] [description]
-	 */
-	public function index()
-	{
-		$data = input('post.');
-		$validate = validate('Login');
-		
-		if($validate->check($data)){
-			$arr = Db::table('am_auth_user')->where('uname',$data['name'])->find();
-			// 比较用户名是否存在
-			if($arr['uname'] == $data['name']){
-
-				// 比较输入的密码是否和数据库存的密码一致
-				if(compare_password($data['pwd'],$arr['pwd'])){
-					$request = new Request();
-					$a = [
-						'last_login_ip'=>$request->ip(),
-						'last_login_time'=>time(),
-					];
-					$res = Db::table('am_auth_user')->where('uid',$arr['uid'])->update($a);
-					$token = $this->token($arr['uid'],$data['name']);
-					// 日志写入
-                    $GLOBALS['err'] = $arr['uname'].'登录成功'; 
-		            $this->estruct();
-					$this->result($token,1,'登录成功');
-				}else{
-					$this->result('',0,'密码错误');
-				}
-
-			}else{
-
-				$this->result('',0,'用户名错误或用户不存在');
-			}
-		}else{
-
-			$this->result('',0,$validate->getError());
-
-		}
-	}
-
+{   
 
 	/**
+     * 登录
+     * @return json
+     */
+    public function login(){
+        $data=input('post.');
+        $validate=validate('Login');
+        if($validate->check($data)){
+            $arr=Db::table('ca_agent')->where('login',$data['login'])->find();
+            if($arr){
+                if(compare_password($data['pass'],$arr['pass'])){
+                    $token=$this->token($arr['aid'],$data['login']);
+                    $this->binding($arr['aid']);
+                    $loginSta = $this->loginSta($arr['aid']);
+                    $this->result(['token'=>$token,'aid'=>$arr['aid']],$loginSta['code'],$loginSta['msg']);
+                }else{
+                    $this->result('',0,'登录失败');
+                }
+            }else{
+                $this->result('',0,'用户不存在');
+            }
+        }else{
+             $this->result('',0,$validate->getError());
+        }
+    }
+    
+    
+    /**
+     * 用户登录返回状态
+     * @param  [type] $token [description]
+     * @param  [type] $sid   [description]
+     * @return [type]        [description]
+     */
+    public function loginSta($aid)
+    {
+        // 判断用户有没有上传营业执照
+        $status = Db::table('ca_agent')->where('aid',$aid)->value('status');
+        // 查看运营商是否设置地区
+        $count = Db::table('ca_increase')->where('aid',$aid)->count();
+        if($status == 0){
+            return  ['code'=>1,'msg'=>'您还未支付系统使用费,请扫码支付'];
+        }else if($status == 3){
+            return  ['code'=>2,'msg'=>'您还未设置地区，请您到个人中心->供应地区->设置您的地区。'];
+        }else if($status == 1 ){
+            return  ['code'=>3,'msg'=>'您已上传营业执照,请等待总后台审核。'];
+        }else if($status == 6){
+            return  ['code'=>4,'msg'=>'您已取消合作,可提现余额'];
+        }else if($count <= 0 && $status !== 6){
+            return  ['code'=>5,'msg'=>'您还未设置地区，请您到个人中心->供应地区->设置您的地区。'];
+        }else if($status == 7){
+             return  ['code'=>7,'msg'=>'您的系统已被关停，如有疑问或重新恢复系统请联系运营，电话：15931155969'];//xjm 10.16 11:30添加该条
+        }else{
+             return  ['code'=>6,'msg'=>'登录成功'];
+        }
+    }
+
+
+
+    /**
      * 忘记密码
      * @return json 修改成功或失败
      */
     public function forget(){
         $data=input('post.');
-        $count = Db::table('am_auth_user')->where('phone',$data['code'])->count();
-        if($count <= 0){
-        	$msg=['status'=>0,'msg'=>'手机号不存在,请核实您的手机号！'];
-        }
         $validate=validate('Forget');
-        if($validate->check($data)){
-            if($this->sms->compare($data['phone'],$data['code'])){
-                $res=Db::table('am_auth_user')->where('phone',$data['phone'])->setField('pwd',get_encrypt($data['pass']));
-                if($res!==false){
-                	// 日志写入
-                    $GLOBALS['err'] = $data['phone'].'修改密码成功'; 
-		            $this->estruct();
-                    $msg=['status'=>1,'msg'=>'修改成功'];
-                }else{
-                    $msg=['status'=>0,'msg'=>'修改失败'];
+        if($validate->check($data))
+        {
+            //检测手机验证码是否正确
+            $check = $this->sms->compare($data['phone'],$data['code']);
+            if($check !== false)
+            { 
+                // 2018/8/6 徐佳孟修改 
+                //查看用户输入的手机号是否注册过系统
+                $count = Db::table('ca_agent')
+                            ->where('phone',$data['phone'])
+                            ->count();
+                if($count > 0) {
+                    $res=Db::table('ca_agent')->where('phone',$data['phone'])->setField('pass',get_encrypt($data['pass']));
+                    if($res!==false){
+                        $msg=['status'=>1,'msg'=>'修改成功'];
+                    }else{
+                        $msg=['status'=>0,'msg'=>'修改失败'];
+                    }
+                } else {
+                    $msg = ['status'=>0,'msg'=>'您的手机号尚未注册系统，请核实'];
                 }
+               
             }else{
                 $msg=['status'=>0,'msg'=>'验证码错误'];
             }
@@ -85,91 +108,84 @@ class Login extends Base
     }
 
 
-	/**
-	 * 忘记密码短信
-	 * @return [type] [description]
-	 */
-	public function pwdApi()
-	{	
-		$phone = input('post.phone');
-		$this->result('',1,$this->forCode($phone));
-	}
-
-
-	   /*
-      *  转盘中奖导出表
-      *  @param parea 市级id
-      */ 
-     
-     public function Export()
-     {
-     	$area = input('get.area');
-        // $area = 35;
-    
-     	if(empty($area)) $this->result('',0,'参数错误');
-     	$xlsData = Db::table('u_winner a')
-               ->join('u_prize b','a.aid = b.id')
-               ->field('a.man,a.phone,a.address,a.details,a.time,b.name')
-     	       ->where(['a.area'=>$area,'a.status'=>1,'a.dor'=>0])->select();
-        if(!$xlsData) $this->result('',0,'此地区数据为空');
-        $xlsName  = "中奖列表";
-        $xlsCell  = array(
-            array('man','中奖用户姓名'),
-            array('phone','手机号'),
-            array('address','地区'),
-            array('details','详细地区'),
-            array('time','中奖时间'),
-            array('name','中奖物品'),
-        );     
-        $result = Db::table('u_winner a')
-               ->join('u_prize b','a.aid = b.id')
-               ->where(['a.area'=>$area,'a.status'=>1])->update(['a.dor'=>1]);
-        exportExcel($xlsName,$xlsCell,$xlsData);
-        exit;
-     } 
-	
-
-	/**
+    /**
      * @param   用户id
      * @param  用户登录账户
      * @return JWT签名
      */
     private function token($uid,$login){
-
         $key=create_key();   //
-        $token=['id'=>$uid,'login'=>$login,'type'=>1];
+        $token=['id'=>$uid,'login'=>$login,'type'=>3];
         $JWT=JWT::encode($token,$key);
-        JWT::$leeway =600;
+        JWT::$leeway =10;
         return $JWT;
     }
 
 
+
     /**
-     * 导出会员地址列表
+     * 登录的修改密码短信验证码
+     * @var string
+     */
+    public function loginFor()
+    {
+        $phone=input('post.phone');
+        return $this->forCode($phone);
+    }
+    
+
+    /*
+     * 系统使用费 提示语
+     */
+    public function hint()
+    {
+        $number = input('post.number');
+        $money = $number * 5000;
+        return '区域增加，请支付系统使用费:'.$money.'元';
+    }
+    /******************************************/
+    // 2018.09.18 15:02 张乐召 添加
+    // 绑定市级代理
+    public function binding($aid)
+    {
+      // 查找该运营商的供应的地区的id
+        $area = Db::table('ca_increase')
+            ->where('aid',$aid)
+            ->field('area')
+            ->select();
+        if(!empty($area)) {
+            // 查找运营商供应地区的市级ID
+            foreach ($area as $key=>$value){
+                $cid[] = Db::table('co_china_data')
+                    ->where('id','in',$area[$key]['area'])
+                    ->value('pid');
+            }
+            $cid = array_unique($cid);
+            // 查找是否有该地区的供应商
+            $g_area = Db::table('cg_area')->select();
+            foreach ($g_area as $key=>$value){
+                if ($cid['0'] == $g_area[$key]['area']){
+                    $gid = $g_area[$key]['gid'];
+                }
+            }
+            // 如存在 供应商 则 更新该运营商的供应商
+            if (!empty($gid)){
+                Db::table('ca_agent')->where('aid',$aid)->update(['gid'=>$gid]);
+            }
+        }
+    }
+    /**
+     * 获取协议内容
      * @return [type] [description]
      */
-    public function order()
+    public function protocol()
     {
-        // $city = input('get.city');
-        // if(!$city) $this->result('',0,'参数city缺少');
-        $expTitle = '会员地址导出';
-        $array = [
-            ['man','收件人'],
-            ['phone','联系电话'],
-            ['address','联系地址'],
-            ['details','详细地址'],
-            ['time','购买会员时间'],
-            
-        ];
-        $list = Db::table('u_winner')
-                ->where(['status'=>0])
-                ->where('member','>',0)
-                ->select();
-        Db::table('u_winner')->where(['status'=>0])->where('member','>',0)->setField('status',1);
-        exportExcel($expTitle,$array,$list);    
+
+        $con = Db::table('am_protocol')
+            ->where('type',1)
+            ->value('content');
+        $con = str_replace('img src=&quot;/data/imgs/','img src="https://doc.ctbls.com/data/imgs/',$con);
+        $content = htmlspecialchars_decode($con);
+        return $content;
     }
-
-
-
-
 }
