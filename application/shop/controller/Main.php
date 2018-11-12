@@ -25,26 +25,22 @@ class Main extends Shop
 	 */
 	public function mateTips()
 	{
-		//添加 判断是否有未处理的物料申请订单   如有订单未处理 则不提示物料补充,提示有待处理的物料申请订单
-		$msg = Db::table('cs_apply_materiel')
-				->where('sid',$this->sid)
-				->where('audit_status',0)
-				->count();  // 未处理订单条数
-	    if ($msg == 0){  // 当 订单数为 0
-			$count = $this->mateCount();
-			if($count >0){
-	 			$this->result('',0,'有物料库存不足，请及时补充');
-			}else{
-	  			$this->result('',1,'物料库存充足');
-			}
-	    }else{   //  未处理订单不为 0
-		  $this->result('',2,'您有待处理的物料申请订单');
-	    }
+		// 2018.08.28 14:14 张乐召  添加 判断是否有未处理的物料申请订单   如有订单未处理 则不提示物料补充,提示有待处理的物料申请订单
+        		$msg = Db::table('cs_apply_materiel')->where('sid',$this->sid)->where('audit_status',0)->count();  // 未处理订单条数
+       		 if ($msg == 0){  // 当 订单数为 0
+           		 $count = $this->mateCount();
+           		 if($count >0){
+             		   $this->result('',0,'有物料库存不足，请及时补充');
+          		  }else{
+              		  $this->result('',1,'物料库存充足');
+          		  }
+      		  }else{   //  未处理订单不为 0
+          		  $this->result('',2,'您有待处理的物料申请订单');
+    		    }
 	}
 
 	/**
 	 * 获取用户
-	 * 新版本使用
 	 */
 	public function getUsers()
 	{
@@ -72,147 +68,38 @@ class Main extends Shop
 				->select();
 		// 判断用户是否是会员
 		foreach ($list as $k => $v) {
-			$status = Db::table('u_member_table')
-						->where([
-							'uid'=>$v['uid'],
-							'pay_status'=>1
-						])
-						->count();
-			$list[$k]['car_pic'] = Db::table('cb_privil_ser')
-									->where('plate',$list[$k]['plate'])
-									->order('id desc')
-									->limit(1)
-									->value('car_pic');
-			if(empty($list[$k]['car_pic'])){
-				$list[$k]['car_pic'] = 'https://ceshi.ctbls.com/uploads/shop/photo/20181107/317821873.png';
-			}
+			$status = Db::table('u_member_table')->where(['uid'=>$v['uid'],'pay_status'=>1])->count();
 			if($status > 0){
 				$list[$k]['status'] = 1;
 			}else{
 				$list[$k]['status'] = 0;
 			}
 		}
+		//判断结束
 		if($count > 0){
 			$this->result(['list'=>$list,'rows'=>$rows],1,'获取成功');
 		}else{
 			$this->result('',0,'暂无数据');
 		}
 	}
-	/**
-	 * 会员管理页面的搜索
-	 * 新版本使用
-	 * @return [type] [description]
-	 */
-	public function searchUsers()
-	{
-		//此处给前端一组默认值，包括起止时间，状态以及购卡类型
-		$data = input('post.');
-		// return $data;die();
-		$page = input('post.page') ? : 1;
-		$data['start_time'] = input('post.start_time') ? : '2018-01-01 00:00:00';
-		$data['end_time'] = input('post.end_time') ? : date('Y-m-d H:i:s',time());
-		$data['card_type'] = input('post.card_type') ? : [1,4];
-		$data['status'] = input('post.status') ? : [1,2];
-		// return $data;die();
-		$pageSize = 10;
-		//如果有用户输入内容
-		$key = $data['key'];
-		$list = Db::table('u_card')
-				->alias('c')
-				->join(['u_user'=>'u'],'c.uid = u.id')
-				->field('c.uid,plate,card_number,remain_times,u.name,u.phone,sale_time')
-				->where([
-					['sid','=',$this->sid],
-					['pay_status','=',1],
-					['c.card_type','in',$data['card_type']],
-					['u.name','like',"%$key%"],
-					['c.sale_time','between time',[$data['start_time'],$data['end_time']]]	
-				])
-				->order('u.id desc')
-				->select();
 
-		
-		// 判断用户是否是会员
-		foreach ($list as $k => $v) {
-			$status = Db::table('u_member_table')
-						->where([
-							'uid'=>$v['uid'],
-							'pay_status'=>1
-						])
-						->count();
-			$list[$k]['car_pic'] = Db::table('cb_privil_ser')
-									->where('plate',$list[$k]['plate'])
-									->order('id desc')
-									->limit(1)
-									->value('car_pic');
-			if(empty($list[$k]['car_pic'])){
-				$list[$k]['car_pic'] = 'https://ceshi.ctbls.com/uploads/shop/photo/20181107/317821873.png';
-			}
-			if($status > 0){
-				$list[$k]['status'] = 1;
-			}else{
-				$list[$k]['status'] = 0;
-			}
-		} 
-		if(!empty($list)) {
-			foreach ($list as $key => $value) {
-				if($data['status'] == 1 && $list[$key]['status'] == 0) {
-					unset($list[$key]);
-				}
-				if($data['status'] == 2 && $list[$key]['status'] == 1) {
-					unset($list[$key]);
-				}
-			}
-			$count  = count($list);
-			$rows   = ceil($count / $pageSize);
-			$list_z = array_slice($list, ($page-1)*$pageSize,$pageSize);//分页的另外一种方式。
-			if($list_z) {
-				$this->result(['list'=>$list_z,'rows'=>$rows],1,'获取成功');
-			} else {
-				$this->result('',0,'暂无数据');
-			}
-		} else {
-			$this->result('',0,'暂无数据');
-		}
-	}
 	/**
-	 * 获取技师列表 头像，姓名，联系方式，从业时间，认证时间，擅长技能，服务次数，服务奖励，换店记录
-	 * 新版本使用
+	 * 获取技师列表
 	 */
 	public function getTns()
 	{
 		$page = input('post.page') ? : 1;
-		$data['start_time'] = strtotime(input('post.start_time') ? : '2018-01-01 00:00:00');
-		$data['end_time'] = strtotime(input('post.end_time') ? : date('Y-m-d H:i:s',time()));
 		// 获取每页条数
 		$pageSize = 10;
 		// 获取分页总条数
-		$count = Db::table('tn_user')
-				->alias('u')
-				->LeftJoin('tn_worker_reward r','r.wid = u.id')
-				->where([
-					'u.sid' => $this->sid,
-					'repair' => 1,//乘用车
-					'cert' => 1//已认证
-				])
-				->where('u.certify_time','between',[$data['start_time'],$data['end_time']])
-				->order('u.id desc')
-				->group('u.id')
-				->count();
+		$count = Db::table('tn_user')->where('sid',$this->sid)->where('repair',1)->count();
 		$rows = ceil($count / $pageSize);
 		// 获取数据
 		$list = Db::table('tn_user')
-				->alias('u')
-				->leftJoin('tn_worker_reward r','r.wid = u.id')
-				->where([
-					'u.sid' => $this->sid,
-					'repair' => 1,//乘用车
-					'cert' => 1//已认证
-				])
-				->order('u.id desc')
-				->group('u.id')
-				->field('u.id,head,name,phone,server,FROM_UNIXTIME(certify_time) as certify_time,skill,sum(r.id) as server_num,sum(r.reward) as server_money')
-				->where('u.certify_time','between',[$data['start_time'],$data['end_time']])
+				->field('name,phone,server,cert,id')
+				->where('sid',$this->sid)
+				->where('repair',1)
+				->order('id desc')
 				->page($page, $pageSize)
 				->select();
 		// 返回数据给前端
@@ -222,44 +109,22 @@ class Main extends Shop
 			$this->result('',0,'暂无数据');
 		}
 	}
+
 	/**
-	 * 获取技师换店记录
-	 * 新版本使用
-	 * @return [type] [description]
-	 */
-	public function getTnsExshop()
-	{
-		$id = input('post.id');
-		$detail = Db::table('tn_exshop')
-	    		->alias('a')
-	    		->join('cs_shop b','b.id = a.sid','LEFT')
-	    		->where('a.uid',$id)
-	    		->where('a.status',1)
-	    		->field('b.company,a.reason,FROM_UNIXTIME(a.create_time) as create_time,FROM_UNIXTIME(a.audit_time) as audit_time')
-	    		->select();
-	    if($detail){
-	    	$this->result($detail,1,'获取成功');
-	    } else {
-	    	$this->result('',0,'获取失败');
-	    }
-	}
-	/**
-	 * 获取技师详情
+	 * 获取技师列表
 	 */
 	public function getTnsDetail()
 	{
 		$id = input('post.id');
-		$info = Db::table('tn_user')
-				->where('id',$id)
-				->field('name,phone,server,skill,wx_head,head,certify_time')
-				->find();
-		$info['detail'] = Db::table('tn_exshop')
-    		->alias('a')
-    		->join('cs_shop b','b.id = a.sid','LEFT')
-    		->where('a.uid',$id)
-    		->where('a.status',1)
-    		->field('b.company,a.reason,a.create_time,a.audit_time')
-    		->select();
+		$info = Db::table('tn_user')->where('id',$id)->field('name,phone,server,skill,wx_head,head,certify_time')->find();
+		//2018.08.27 15:08  张乐召   添加 技师换店记录
+        		$info['detail'] = Db::table('tn_exshop')
+            		->alias('a')
+            		->join('cs_shop b','b.id = a.sid','LEFT')
+            		->where('a.uid',$id)
+            		->where('a.status',1)
+            		->field('b.usname,a.reason,a.create_time,a.audit_time')
+            		->select();
 		// 返回数据给前端
 		if($info){
 			$this->result($info,1,'获取成功');
@@ -267,89 +132,7 @@ class Main extends Shop
 			$this->result('',0,'暂无数据');
 		}
 	}
-	/**
-	 * 取消认证技师
-	 * 新版本使用
-	 * @return [type] [description]
-	 */
-	public function cancelTns()
-	{
-		$data = input('post.');
-		if(empty($data['reason'])){
-			$this->result('',0,'请输入原因');
-		} else {
-			Db::startTrans();
-			$arr = [
-				'wid' => $data['id'],
-				'reason' => $data['reason'],
-				'sid' => $this->sid
-			];
-			//入库维修厂取消认证技师表
-			$ins = Db::table('tn_shop_cancel')
-					->strict(false)
-					->insert($arr);
-			//更改技师状态
-			$cancel = Db::table('tn_user')
-						->where('id',$data['id'])
-						->setField(['cert'=>0,'certify_time'=>time()]);
-			//减少维修厂技师数量
-			$re = Db::table('cs_shop')
-					->where('id',$this->sid)
-					->setDec('tech_num',1);
-			if($ins !== false && $cancel !== false && $re !== false) {
-				Db::commit();
-				$this->result('',1,'已取消认证');
-			} else {
-				Db::rollback();
-				$this->result('',0,'操作失败');
-			}
-		}
-	}
-	/**
-	 * 取消记录
-	 * @return [type] [description]
-	 */
-	public function cancelTnsList()
-	{
-		$page = input('post.page') ? : 1;
-		$data['start_time'] = input('post.start_time') ? : '2018-01-01 00:00:00';
-		$data['end_time'] = input('post.end_time') ? : date('Y-m-d H:i:s',time());
-		// 每页条数
-		$pageSize = 10;
-		$count = Db::table('tn_shop_cancel')
-				->alias('c')
-				->join('tn_user u','u.id = c.wid')
-				->LeftJoin('tn_worker_reward r','r.id = u.id')
-				->where([
-					'u.sid' => $this->sid,
-					'repair' => 1,//乘用车
-				])
-				->order('u.id desc')
-				->group('u.id')
-				->field('u.id,head,name,phone,server,FROM_UNIXTIME(certify_time) as certify_time,skill,sum(r.id) as server_num,sum(r.reward) as server_money')
-				->where('c.create_time','between',[$data['start_time'],$data['end_time']])
-				->count();
-		$rows = ceil($count / $pageSize);
-		$list = Db::table('tn_shop_cancel')
-				->alias('c')
-				->join('tn_user u','u.id = c.wid')
-				->LeftJoin('tn_worker_reward r','r.id = u.id')
-				->where([
-					'u.sid' => $this->sid,
-					'repair' => 1,//乘用车
-				])
-				->order('u.id desc')
-				->group('u.id')
-				->field('u.id,head,name,phone,server,FROM_UNIXTIME(certify_time) as certify_time,skill,sum(r.id) as server_num,sum(r.reward) as server_money')
-				->where('c.create_time','between',[$data['start_time'],$data['end_time']])
-				->page($page, $pageSize)
-				->select();
-		if($list){
-			$this->result(['list'=>$list,'rows'=>$rows],1,'获取成功');
-		}else{
-			$this->result('',0,'暂无数据');
-		}
-	}
+
 	/**
 	 * 认证技师
 	 */
@@ -530,77 +313,6 @@ class Main extends Shop
 			}
 		}
 	}
-	/**
-	 * 完善店铺信息 维修厂名称，负责人，主修，省市县，详细地址，服务电话，店铺简介，店铺照片，营业执照
-	 * 新版本维修厂使用
-	 */
-	public function setShopInfo()
-	{
-		$data = input('post.');
-		//实例化验证
-		$validate = validate('Info');
-		if($validate->check($data)){
-			//将提交过来的主修数组 分割为字符串
-			$data['major'] = implode(',', $data['major']);
-			//实例化
-			$map = new Map();
-			//空格无害化处理
-			$data['address'] = str_replace(' ', '', $data['address']);
-			//拼接地址
-			$adre = $data['province'].$data['city'].$data['county'].$data['address'];
-			//后台获取经纬度
-			$data['lat'] = $map->maps($adre)['lat'];
-			$data['lng'] = $map->maps($adre)['lng'];
-			// 接受图片json处理
-			$data['photo'] = json_encode($data['photo']);
-			// 根据坐标获得hash值
-			$geo = new Geo();
-			$data['hash_val'] = $geo->encode_hash($data['lat'],$data['lng']);
-			unset($data['token']);
-			//构建更新cs_shop表的数组
-			$arr = [
-				'company' => $data['company'],
-				'leader'  => $data['leader']
-			];
-			unset($data['company']);
-			unset($data['leader']);
-			Db::startTrans();
-			//获取维修厂当前状态
-			$audit_status = Db::table('cs_shop')
-							->where('id',$this->sid)
-							->value('audit_status');
-			if($audit_status < 1){
-				//将状态改为已完善信息
-				$re = Db::table('cs_shop')
-					  ->where('id',$this->sid)
-					  ->setField('audit_status',1);
-			} else {
-				$re = 1;
-			}
-			//更新维修厂店铺信息
-			$save = Db::table('cs_shop_set')
-						->where('sid',$this->sid)
-						->update($data);
-			$save_m = Db::table('cs_shop')
-					->where('id',$this->sid)
-					->update($arr);
-			if($audit_status == 0) {
-					$msg = '您的资料已提交审核';
-				} else {
-					$msg = '修改成功';
-				}
-			if($re!==false && $save!==false && $save_m!==false){
-				Db::commit();
-				$this->setAgent($this->sid);
-				$this->result('',1,$msg);
-			}else{
-				Db::rollback();
-				$this->result('',0,'保存失败');
-			}
-		} else {
-			$this->result('',0,$validate->getError());
-		}
-	}
 
 	/**
 	 * 获取统计数字
@@ -656,7 +368,6 @@ class Main extends Shop
 			if(get_encrypt($data['passwd']) == $op){
 				// 检测数据提交
 				if($data['npasswd'] == $data['spasswd']){
-					//此处之前有个小bug，更新的一直是原密码
 					$res = Db::table('cs_shop')
 							->where('id',$this->sid)
 							->setField('passwd',get_encrypt($data['npasswd']));
@@ -754,12 +465,7 @@ class Main extends Shop
 		$mobile = $this->getMobile();
 		$code = $this->apiVerify();
 		$content = "您的短信验证码是【{$code}】。您正在通过手机号重置登录密码，如非本人操作，请忽略该短信。";
-		$res = $this->sms->send_code($mobile,$content,$code);
-		if($res == "提交成功"){
-			$this->result('',1,'发送成功');
-		} else {
-			$this->result('',0,'由于短信平台限制，您一天只能接受五次验证码');
-		}
+		return $this->sms->send_code($mobile,$content,$code);
 	}
 
 	/**
@@ -775,24 +481,18 @@ class Main extends Shop
 	}
 	/**
 	 * 修改手机号发送短信验证码
-	 * 新版本维修厂使用
 	 * @return [type] [description]
 	 */
 	public function alterCode(){
 		$mobile = $this->getMobile();
 		$code = $this->apiVerify();
 		$countent = "您正在修改手机号，验证码【{$code}】，请在5分钟内按页面提示提交验证码，切勿将验证码泄露于其他人。";
-		$res = $this->sms->send_code($mobile,$countent,$code);
-		if($res == "提交成功"){
-			$this->result('',1,'发送成功');
-		} else {
-			$this->result('',0,'由于短信平台限制，您一天只能接受五次验证码');
-		}
+		$list = $this->sms->send_code($mobile,$countent,$code);
+		$this->result('',1,'验证码已发送');
 	}
 
 	/**
 	 * 修改手机号
-	 * 新版本使用
 	 * @return [type] [description]
 	 */
 	public function alterPhone()

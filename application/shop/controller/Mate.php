@@ -37,39 +37,29 @@ class Mate extends Shop
 
 
 	/**
-	 * 进行物料申请 
-	 * 新版本使用
+	 * 进行物料申请  2018.8.22 孙烨兰修改
+	 * 2018.08.29 18:41 xjm
 	 */
 	public function apply()
-	{	
-		$audit_msg = Db::table('cs_apply_materiel')
-						->where('sid',$this->sid)
-						->where('audit_status',0)
-						->count();  // 未处理订单条数
-		if($audit_msg == 0) {
-			$count = $this->mateCount();
-			if($count > 0){
-				// 列出所有需要补充物料
-				$info = Db::table('cs_ration')
-						->alias('r')
-						->join(['co_bang_cate'=>'c'],'r.materiel = c.id')
-						->field('materiel as materiel_id,(ration - stock) as apply,c.name as materiel')
-						->where('sid',$this->sid)
-						->where('stock < ration')
-						->select();
-				$this->result($info,1,'需要补充的物料');
-			}else{
-				$this->result('',0,'当前物料充足无需补充物料');
-			}
-		} else {
-			$this->result('',2,'您有尚未处理的物料申请订单');
+	{
+		$count = $this->mateCount();
+		if($count > 0){
+			// 列出所有需要补充物料
+			$info = Db::table('cs_ration')
+					->alias('r')
+					->join(['co_bang_cate'=>'c'],'r.materiel = c.id')
+					->field('materiel as materiel_id,(ration - stock) as apply,c.name as materiel')
+					->where('sid',$this->sid)
+					->where('stock < ration')
+					->select();
+			$this->result($info,1,'需要补充的物料');
+		}else{
+			$this->result('',0,'当前物料充足无需补充物料');
 		}
-		
 	}	
 
 	/**
 	 * 进行物料申请
-	 * 新版本使用
 	 */
 	public function handle()
 	{
@@ -82,7 +72,7 @@ class Mate extends Shop
 			'aid' => $aid,
 			'detail' => $data['detail']
 		];
-		// 检测是否有未处理的订单，防止重复提交 
+		// 检测是否有未处理的订单，防止重复提交  //有未完成的便不能再次申请 2018-10-8 cjx
 		$count = Db::table('cs_apply_materiel')
 					->where([
 						'sid' => $this->sid,
@@ -93,10 +83,7 @@ class Mate extends Shop
 			$this->result('',0,'您有未处理的订单，请确认！');
 		}else{
 			// 进行数据插入
-			$res = Db::table('cs_apply_materiel')
-					->strict(false)
-					->insert($arr);
-			if($res){
+			if(Db::table('cs_apply_materiel')->strict(false)->insert($arr)){
 				$this->result('',1,'提交成功');
 			}else{
 				$this->result('',0,'提交失败');
@@ -106,7 +93,6 @@ class Mate extends Shop
 
 	/**
 	 * 取消物料申请订单
-	 * 新版本使用
 	 */
 	public function cancel()
 	{
@@ -116,14 +102,10 @@ class Mate extends Shop
 			$this->result('',0,'取消理由不能为空');
 		}
 		// 检测订单处理状态
-		$status = Db::table('cs_apply_materiel')
-					->where('id',$id)
-					->value('audit_status');
+		$status = Db::table('cs_apply_materiel')->where('id',$id)->value('audit_status');
 		// 如果订单未处理，则可以取消
 		if($status == 0){
-			$res = Db::table('cs_apply_materiel')
-					->where('id',$id)
-					->update(['audit_status'=>3,'reason'=>$reason]);
+			$res = Db::table('cs_apply_materiel')->where('id',$id)->update(['audit_status'=>3,'reason'=>$reason]);
 			if($res !== false){
 				$this->result('',1,'提交成功');
 			}else{
@@ -137,7 +119,6 @@ class Mate extends Shop
 
 	/**
 	 * 物料申请记录
-	 * 新版本使用
 	 */
 	public function log()
 	{
@@ -145,16 +126,12 @@ class Mate extends Shop
 		// 获取每页条数
 		$pageSize = 10;
 		// 获取分页总条数
-		$count = Db::table('cs_apply_materiel')
-					->where('sid',$this->sid)
-					->where('audit_status','<>',1)
-					->count();
+		$count = Db::table('cs_apply_materiel')->where('sid',$this->sid)->count();
 		$rows = ceil($count / $pageSize);
 		// 查询数据内容
 		$list = Db::table('cs_apply_materiel')
 				->field('apply_sn,create_time,audit_status,audit_time,if_delay,reason,id')
 				->where('sid',$this->sid)
-				->where('audit_status','<>',1)
 				->order('id desc')
 				->page($page, $pageSize)
 				->select();

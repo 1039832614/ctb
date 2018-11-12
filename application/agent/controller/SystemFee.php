@@ -42,7 +42,8 @@ class SystemFee extends Agent
 		$input->SetProduct_id("996688525");
 		$result = $api->GetPayUrl($input);
 		$url = $result["code_url"];
-		$url = 'http://paysdk.weixin.qq.com/qrcode.php?data='.urlencode($url);
+		// $url = 'http://paysdk.weixin.qq.com/qrcode.php?data='.urlencode($url);
+		$url = "https://api.qrserver.com/v1/create-qr-code/?data=".$url;
 		return $url;
 	}
 
