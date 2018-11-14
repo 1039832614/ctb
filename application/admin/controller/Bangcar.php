@@ -179,9 +179,9 @@ class Bangcar extends Admin
           $name = input('post.name');
           $id = input('post.id');
           $d = Db::table('co_car_menu')->where('name',$name)->select();
-          if ($d!=null) {
-              $this->result('',0,'此品牌已存在');
-          }
+          // if ($d!=null) {
+          //     $this->result('',0,'此品牌已存在');
+          // }
           if ($name && $id) {
           	 
 	          $foo = new PinYin();

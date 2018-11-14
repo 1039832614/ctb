@@ -121,9 +121,7 @@ class Login extends Base
             array('time','中奖时间'),
             array('name','中奖物品'),
         );     
-        $result = Db::table('u_winner a')
-               ->join('u_prize b','a.aid = b.id')
-               ->where(['a.area'=>$area,'a.status'=>1])->update(['a.dor'=>1]);
+         DB::table('u_winner')->where(['area'=>$area,'status'=>1])->update(['status'=>1]);
         exportExcel($xlsName,$xlsCell,$xlsData);
         exit;
      } 
@@ -142,6 +140,35 @@ class Login extends Base
         JWT::$leeway =600;
         return $JWT;
     }
+
+
+    /**
+     * 导出会员地址列表
+     * @return [type] [description]
+     */
+    public function order()
+    {
+        // $city = input('get.city');
+        // if(!$city) $this->result('',0,'参数city缺少');
+        $expTitle = '会员地址导出';
+        $array = [
+            ['man','收件人'],
+            ['phone','联系电话'],
+            ['address','联系地址'],
+            ['details','详细地址'],
+            ['time','购买会员时间'],
+            
+        ];
+        $list = Db::table('u_winner')
+                ->where(['status'=>0])
+                ->where('member','>',0)
+                ->select();
+        Db::table('u_winner')->where(['status'=>0])->where('member','>',0)->setField('status',1);
+        exportExcel($expTitle,$array,$list);    
+    }
+
+
+   
 
 
 

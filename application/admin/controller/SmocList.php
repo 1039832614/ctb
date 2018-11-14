@@ -74,12 +74,14 @@ class SmocList extends Admin
            $ids[] = explode(',', $value['sm_member_id']);
         }
       }
-      // 删除空数组
-      $ids = $this->delFiles($ids);
+     
      	
       // print_r($item);die;
       if(!empty($ids)){
          
+          // 删除空数组
+          $ids = $this->delFiles($ids);
+
     		  $ids = $this->onArr($ids);
           if(!empty($ids)){
                $ids = array_values($ids);
@@ -125,11 +127,16 @@ class SmocList extends Admin
 
         }else{
           // 添加投诉次数
-          foreach ($item as $key => $value) {
+          if (isset($item)) {
+            foreach ($item as $key => $value) {
               if(!$this->delFiles($value['arr'])){
                 $item[$key]['compSize'] = 0;
               }
-           } 
+            } 
+           
+          }else{
+            $item = null;
+          }
           $comp = $item;
         }
 
@@ -141,6 +148,7 @@ class SmocList extends Admin
      // 获取服务经理收益
      $price = DB::table('sm_income')
               ->where('person_rank',$type)
+              ->where('if_finish', 1)
               ->field('sm_id,sum(money) money')
               ->group('sm_id')
               ->select();  
@@ -151,6 +159,11 @@ class SmocList extends Admin
 
      // 组合数据
      $data = $this->meragelist($data,$comp,$price,$type,$put);
+     // 服务经理时组合数据
+     if ($type == 1) {
+        $partner = $this->partner(); // 获取业务合作用户
+        $data = array_merge($data, $partner);
+     }
      if(empty($data)){
      	$this->result('',0,'暂无数据');
      } 
@@ -165,6 +178,39 @@ class SmocList extends Admin
      $this->PolPage($data,0,5);
      
    }
+
+    /**
+     * 售卡分成
+     * 
+     */
+   
+    public function getDiv()
+    {
+        $id = input('post.sm_id');
+        $type = input('post.type');
+        if (!$id || !$type) {
+            $this->result('', 0, '缺少必要参数');
+        }
+        
+        // 获取售卡分成
+        $count = Db::table('sm_income')->where('sm_id', $id)->count();
+        if (!$count) {
+            $this->Result('', 0, '暂无数据');
+        }
+        $column = DB::table('sm_income a')
+                  ->join('u_card b', 'a.cid = b.id')
+                  ->where('a.sm_id', $id)
+                  ->where('if_finish', 1)
+                  ->where('a.person_rank', $type)
+                  ->field('b.plate, b.cate_name, b.sale_time, b.card_price, a.money')
+                  ->page(input('post.page')?:1 ,8)
+                  ->select();
+        $rows = ceil($count / 8);
+        if (!$column){
+            $this->Result('', 0, '暂无数据');
+        }
+        $this->result(['rows'=>$rows, 'list'=>$column], 1, '获取成功');        
+    }
 
    /*
     *  服务经理权限区域
@@ -388,7 +434,7 @@ class SmocList extends Admin
       // $type = Db::table('sm_area')->where('id',$id)->value('is_exits');
       // $type = $type==1?2:1;
 
-      $result = DB::table('sm_area')->where('id',$id)->update(['sm_mold'=>2 , 'if_read'=>0 , 'reason'=>$reason]);
+      $result = DB::table('sm_area')->where('id',$id)->update(['sm_mold'=>2 , 'if_read'=>0 , 'reason'=>$reason, 'audit_time'=>time()]);
       if(!$result){
       	$this->result('',0,'设置失败');
       }
@@ -629,7 +675,13 @@ class SmocList extends Admin
        if(!$id){
         $this->result('',0,'参数错误');
        }  
-       $result = Db::table('sm_area')->where('sm_id',$id)->update(['sm_mold'=>2,'reason'=>$reason ]);
+       $result = Db::table('sm_area')->where('sm_id',$id)->update(['sm_mold'=>2,'reason'=>$reason ,'audit_time'=>time()]);
+       // 修改身份为游客
+       DB::table('sm_user')->where('id' ,$id)->update(['person_rank'=>0]);
+       // 删除团队
+       DB::table('sm_team')->where('sm_header_id', $id)->delete();
+       Db::table('sm_team_invite')->where('sm_header_id', $id)->delete();
+       
        if($result===false){
         $this->result('',0,'设置失败');
        }
@@ -1396,6 +1448,53 @@ class SmocList extends Admin
         }
                                                                                                                                                
         return $files;
+    }
+
+    /**
+     *  获取服务经理---业务合作
+     */
+    
+    public function partner()
+    {   
+        // 获取id、名称、手机号
+        $data = DB::table('sm_user')->where('joinStatus', 0)->field('id, name, phone')->select();
+        if (!$data) {
+            return null;
+        }
+        // 获取金额
+        $ids = array_column($data, 'id');
+        
+        $price = DB::table('sm_income')
+                 ->whereIn('sm_id', $ids)
+                 ->where('if_finish', 0)
+                 // ->whereIn('cash_status', [])
+                 ->field('sm_id, sum(money) price')
+                 ->group('sm_id')
+                 ->select();
+
+        // 组合数据
+        foreach ($data as $k => $v) {
+            if (isset($price)) {
+                foreach ($price as $key => $value) {
+                    if ($v['id'] == $value['sm_id']) {
+                        $data[$k]['price'] = $value['price'];   // 获取金额
+                    }
+                }
+            } else {
+                $data[$key]['price'] = 0;
+            }
+            $data[$k]['sm_id'] = $data[$k]['id']; // 获取服务经理id
+            $data[$k]['id'] = 666666;             // 定义id
+            $data[$k]['sm_mold'] = '业务合作';    // 冷静期？？正常？？业务合作？？
+            $data[$k]['sm_type'] = 1;        // 1 服务经理
+            $data[$k]['areasum'] = 0;
+            $data[$k]['put'] =  0;        // 提现金额
+            $data[$k]['compSize'] = 0;    // 投诉次数
+            $data[$k]['pstatus'] = 2;     // 投诉期状态 ？？３？？业务合作？？
+        }
+
+                                                                                                                 
+        return $data;
     }
 
 }

@@ -156,7 +156,7 @@ class Giftpro extends Admin
      
      public function LuckNot()
      {
-     	$this->LuckShow(1);
+     	$this->LuckShow(0);
      }     
 
      /*
@@ -165,8 +165,34 @@ class Giftpro extends Admin
      
      public function LuckAlear()
      {
-     	$this->LuckShow(2);
+     	$this->LuckShow(1);
      } 
+
+     public function Export()
+     {
+        $area = input('post.area');
+        if(empty($area)) $this->result('',0,'参数错误');
+        $xlsData = Db::table('u_winner a')
+               ->join('u_prize b','','a.aid = b =  = b.id')
+               ->field('a.man,a.p,an,a.phone,a.a,ne,a.address,a.d,ss,a.details,a.t,ls,a.time,b.n,me,b.name')
+               ->where(['a.area'=>$area,'a.status'=>1])->select();
+        if(!$xlsData) $this->result('',0,'此地区数据为空');
+        $xlsName  = "中奖列表";
+        $xlsCell  = array(
+            array('man','中奖用户姓名'),
+            array('phone','手机号'),
+            array('address','地区'),
+            array('details','详细地区'),
+            array('time','中奖时间'),
+            array('name','中奖物品'),
+        );  
+                                                                    
+        $this->exportExcel($xlsName,$xlsCell,$xlsData);
+        DB::table('u_winner')->where(['area'=>$area,'status'=>1])->update(['status'=>1]);
+     } 
+
+
+
     
 
 
@@ -185,6 +211,7 @@ class Giftpro extends Admin
         $rows = ceil($page/$size);
         $data = Db::table('u_winner a')->where('a.status',$status)
                 ->leftjoin('u_prize b','a.aid = b.id')
+                ->where('a.member','=',0)
                 ->page($page,$size)
                 ->field('a.man,a.phone,a.address,a.details,a.status,b.name')
                 ->select();

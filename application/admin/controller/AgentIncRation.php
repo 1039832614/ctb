@@ -215,16 +215,37 @@ class AgentIncRation extends Admin
 
 
 		/**
-		 * 服务经理列表（下拉列表）
+		 * 服务经理业务合作弹窗
 		 */
-		public function setList()
+		public function setListTow()
 		{
-			$list = Db::table('sm_user')->where('person_rank',1)->field('id,name')->select();
-			if($list){
-				$this->result($list,1,'服务经理列表成功');
-			}else{
-				$this->result('',0,'服务经理列表失败');
-			}
+			
+			// 查询sm_user表根据状态查询用户
+			$list = Db::table('sm_user')
+					->where(['person_rank'=>1,'joinStatus'=>0])
+					->order('id desc')
+					->field('name,id')
+					->select();
+			if($list) $this->result($list,1,'获取列表成功');
+			$this->result('',0,'暂无数据');
+
+		}
+
+
+		/**
+		 * 服务经理加盟弹窗
+		 */
+		public function setListThe()
+		{
+			$list = Db::table('sm_area')
+					->alias('ma')
+					->join('sm_user mu','mu.id = ma.sm_id')
+					->where(['pay_status'=>1,'audit_status'=>1,'sm_type'=>1,'is_exits'=>1])
+					->where('sm_mold','<>',2)
+					->field('mu.id,mu.name')
+					->select();
+			if($list) $this->result($list,1,'获取列表成功');
+			$this->result('',0,'暂无数据');
 		}
 
 

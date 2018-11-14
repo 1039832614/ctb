@@ -51,7 +51,7 @@ class Smoc extends Admin
        // 查询数据
        $data = Db::table('sm_user a')
                ->leftjoin('sm_area b' ,'a.id = b.sm_id')
-               ->join('co_china_data c','b.area = c.id')
+               ->leftjoin('co_china_data c','b.area = c.id')
                ->field('a.id uid,b.id,b.sm_type,c.name area,a.name,a.phone,a.head_pic,b.money,b.audit_status,'.$fields)
                // ->where('b.pay_status',1)
                ->whereIn('b.audit_status',$status)
@@ -87,20 +87,36 @@ class Smoc extends Admin
     public function regDetail()
     {
       $result = Request::has('uid','post');
+      // $uid = input('post.uid');
       if(!$result){
         $this->result('',0,'参数错误');
       }
+      // print_r($result);die;
       // $data = Db::table('sm_user')->where('id',$result['uid'])->field('name,phone,bank_name,bank_code,bank_branch,account,head_pic')->find();
-      $data = Db::table('sm_user a')->leftjoin('co_bank_code b','a.bank_code = b.code')
-              ->field('a.name,a.phone,a.bank_name,b.name bank_code,a.bank_branch,a.account,a.head_pic')
-              ->where('a.id',$result['uid'])
+      $data = Db::table('sm_user a')
+              ->join('co_bank_code b', 'a.bank_code = b.code')
+              ->field('a.name, a.phone, a.bank_name, b.name bank_code, a.bank_branch, a.account, a.head_pic')
+              ->where('a.id', $result['uid'])
               ->find();
+      $data['money'] = DB::table('sm_income')
+                       ->where('sm_id', $result['uid'])
+                       ->where([
+                       'if_finish' => 1,
+                       'cash_status' => [0, 3],
+                       ])
+                       ->sum('money');
       if(!$data){
         $this->result('',0,'获取数据失败');
       }
       $this->result($data,1,'获取成功');
       
     }
+    
+
+
+
+
+
     /*
      *  注册审核通过 默认值
      *
@@ -188,7 +204,8 @@ class Smoc extends Admin
       }
       $GLOBALS['err'] = $this->ifName().'通过了'.$type.'【'.$data['name'].'】的地区申请'; 
       $this->estruct();
-
+      // 修改用户身份为 1 加盟状态
+      db::table('sm_user')->where('id', $data['sm_id'])->update(['joinStatus'=>1]);
       $this->result('',1,'确定成功');
     }
 
@@ -212,7 +229,11 @@ class Smoc extends Admin
               ->field('a.sm_id,a.sm_type,b.name')
               ->where('a.id',$id)
               ->find();
-      DB::table('sm_user')->where('id',$data['sm_id'])->update(['person_rank'=>$data['sm_type']]);
+
+      if ($data['sm_type'] == 1) {
+        DB::table('sm_user')->where('id',$data['sm_id'])->update(['person_rank'=>$data['sm_type']]);
+      }
+      
 
 
       if(!$result){
@@ -355,11 +376,24 @@ class Smoc extends Admin
       // 审核人
       $arr['audit_person'] = $this->ifName(); 
       
+      // 获取用户id
+      $id_type = Db::table('sm_area')->where('id', $result['id'] )->field('sm_id, sm_type')->find();
+      // 修改用户状态
+      if ($id_type['sm_type']==2) {
+        Db::table('sm_user')->where('id', $id_type['sm_id'])->update(['person_rank'=>0]);
+               // 删除团队
+       DB::table('sm_team')->where('sm_header_id', $id_type['sm_id'])->delete();
+       Db::table('sm_team_invite')->where('sm_header_id', $id_type['sm_id'])->delete();
+      }
+      
       Db::startTrans();
       try {
           // 取消合作通过
           Db::table('sm_apply_cancel')->where('sid',$result['id'])->whereIn('status',0)->update($arr);
-          Db::table('sm_area')->where('id',$result['id'])->update(['sm_mold'=>2 ,'if_read'=>0]);
+          Db::table('sm_area')->where('id',$result['id'])->update(['sm_mold'=>2]);
+
+          // 修改用户状态
+          
           // 提交事务
           Db::commit();
           
@@ -386,6 +420,42 @@ class Smoc extends Admin
 
       $this->result('',1,'通过成功');
     }
+
+    /*
+     * 已取消地区列表
+     *
+     */
+    
+    public function getAlready()
+    {
+        
+        $type = input('post.status')?:[1,2];
+        $search = input('post.search');
+
+        $count = Db::table('sm_apply_cancel a')
+                ->join('sm_area b', 'a.sid = b.id')
+                ->join('sm_user c', 'a.sm_id = c.id')
+                ->whereIn('b.sm_type', $type)
+                ->whereLike('c.name', '%'.$search.'%')
+                ->count();
+        if (empty($count)) {
+            $this->result('', 0, '暂无数据');
+        }
+        
+        $data = Db::table('sm_apply_cancel a')
+                ->join('sm_area b', 'a.sid = b.id')
+                ->join('sm_user c', 'a.sm_id = c.id')
+                ->join('co_china_data d', 'b.area = d.id')
+                ->whereIn('b.sm_type', $type)
+                ->whereLike('c.name', '%'.$search.'%')
+                ->field('c.name, c.phone, c.head_pic, d.name user_name, if(b.sm_type=1,"服务经理","运营总监") type, FROM_UNIXTIME(a.audit_time,"%Y/%m/%d %H:%i") audit_time')
+                ->page(input('post.page'), 8)
+                ->select();
+        // print_R($data);die;
+        $rows = ceil($count / 8);
+        $this->result(['rows'=>$rows,'list'=>$data], 1, '获取成功');
+    }
+
     
     /*
      *  申请提现列表
@@ -643,7 +713,7 @@ class Smoc extends Admin
 
 
             // 增加地区审核  ， 取消地区审核
-            if($field != 1){
+            if($field != 1 && $field != 3){
            
                 unset($data['data'][$k]['sm_type']);
                 unset($data['data'][$k]['head_pic']);

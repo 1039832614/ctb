@@ -37,8 +37,38 @@ class AuthIndex extends Admin
 		if($list){
 			$this->result($list,1,'获取用户的权限');
 		}else{
-			$this->result('',0,'获取用户权限失败')
+			$this->result('',0,'获取用户权限失败');
 		}
 	}
+
+
+	/**
+	 * 沧州购卡数据
+	 * @return [type] [description]
+	 */
+	public function cangzhou()
+	{
+		$list = Db::table('cg_supply gs')
+				->join('ca_agent aa','gs.gid = aa.gid')
+				->join('cs_shop ss','aa.aid = ss.aid')
+				->join('u_card uc','ss.id = uc.sid')
+				->field('ss.company,ss.leader,ss.phone,cate_name,card_number,plate,remain_times,card_price,sale_time')
+				->where('uc.pay_status',1)
+				->select();
+        $xlsName  = "沧州售卡详情";
+        $xlsCell  = array(
+            array('company','维修厂名称'),
+            array('leader','负责人'),
+            array('phone','联系电话'),
+            array('cate_name','车辆类型'),
+            array('card_number','邦保养卡号'),
+            array('plate','车牌号'),
+            array('remain_times','剩余次数'),
+            array('card_price','售卡金额'),
+            array('sale_time','售卡时间')
+        );
+        exportExcel($xlsName,$xlsCell,$list);
+    }
+
 	
 }

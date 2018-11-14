@@ -22,6 +22,7 @@ class FundIncome extends Admin
 		         ->join('u_user u','c.uid = u.id')
 		         ->join('cs_shop s','c.sid = s.id')
 		         ->order('c.sale_time desc')
+		         ->where('c.pay_status',1)
 		         ->page($page,$pageSize)
 		         ->field('s.company,u.name,u.phone,c.sale_time,c.card_price')
 		         ->select();
